@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="19.11.0.0">
+<procedure name="main">
+<interface/>
+<body>
+<l>dev_close_window ()</l>
+<l>read_image (Image, 'Photo/11.bmp')</l>
+<l>rgb1_to_gray (Image, GrayImage)</l>
+<l>get_image_size (Image, Width, Height)</l>
+<l>dev_open_window (0, 0, Width/3, Height/3, 'black', WindowHandle)</l>
+<l>dev_display (Image)</l>
+<c></c>
+<c>/*图像处理*/</c>
+<l>draw_rectangle1 (WindowHandle, Row1, Column1, Row2, Column2)</l>
+<l>gen_rectangle1 (Rectangle, Row1, Column1, Row2, Column2)</l>
+<l>reduce_domain (GrayImage, Rectangle, ImageReduced)</l>
+<c>/*处理区域*/</c>
+<l>auto_threshold (ImageReduced, Regions, 2)</l>
+<l>connection (Regions, ConnectedRegions)</l>
+<l>select_shape (ConnectedRegions, SelectedRegions, 'area', 'and', 3000, 50000)</l>
+<c>/*Part1:切割出圆环*/</c>
+<c>  /*提取圆度最高的*/</c>
+<l>  region_features (SelectedRegions, 'circularity', RegionCircularity)</l>
+<l>  tuple_sort_index (RegionCircularity,  RegionIndices) //升序，并且返回坐标</l>
+<l>  tuple_inverse (RegionIndices, Inverted)</l>
+<c>  /*选择最大的*/</c>
+<l>  select_obj (SelectedRegions, MaxCircularitySelected, Inverted[0]+1)</l>
+<c>  </c>
+<c>  /*提取边缘*/</c>
+<l>  reduce_domain (ImageReduced, MaxCircularitySelected, ImageCenter)</l>
+<l>  gen_contour_region_xld (MaxCircularitySelected, Contours, 'border')</l>
+<c>  </c>
+<c>  /*最小内接圆*/</c>
+<l>  smallest_circle_xld (Contours, CircleRow, CircleColumn, CircleRadius)</l>
+<c>  </c>
+<l>  distance_pc (Contours, CircleRow, CircleColumn, DistanceMin, DistanceMax) //计算轮廓的最小直径和最大直径</l>
+<l>  gen_circle (EnClosingCircle, CircleRow, CircleColumn, DistanceMax+3.4)</l>
+<l>  gen_circle (Circle1, CircleRow, CircleColumn, DistanceMax+20)</l>
+<c>  </c>
+<c>  /*切出圆环*/</c>
+<l>  difference (Circle1, EnClosingCircle, CircleDifference)</l>
+<l>  reduce_domain (GrayImage, CircleDifference, CirclePolar)</l>
+<c>  </c>
+<c>/*Part2:增强图像并转换极坐标*/</c>
+<l>dev_open_window (0, Width/4, Width/4, 100, 'black', WindowHandle_polar)</l>
+<l>dev_set_window (WindowHandle_polar)</l>
+<l>polar_trans_image_ext (CirclePolar, PolarTransImage, CircleRow, CircleColumn, rad(-45), rad(315), DistanceMax+3, DistanceMax+20, Width, Height, 'nearest_neighbor')</l>
+<c>  /*增强图像*/</c>
+<l>  auto_threshold (PolarTransImage, Regions1, 2)</l>
+<l>  scale_image (PolarTransImage, ImageScaled, 5, -381)</l>
+<c>  </c>
+<c>//Part3:处理出极性</c>
+<l>binary_threshold (ImageScaled, Region, 'max_separability', 'light', UsedThreshold)</l>
+<l>fill_up (Region, RegionFillUp)</l>
+<l>dilation_rectangle1 (RegionFillUp, RegionDilation, 10, 2)</l>
+<l>connection (RegionDilation, ConnectedRegions1)</l>
+<l>select_shape (ConnectedRegions1, SelectedRegions2, 'area', 'and', 300000, 999999)</l>
+<c></c>
+<c>//Part4:还原回去</c>
+<l>dev_set_window (WindowHandle)</l>
+<l>get_image_size (ImageScaled, Width1, Height1)</l>
+<l>polar_trans_region_inv (SelectedRegions2, XYTransRegion, CircleRow, CircleColumn, rad(-45), rad(315), DistanceMax+3, DistanceMax+20, Width1, Height1, Width, Height, 'nearest_neighbor')</l>
+<l>dev_clear_window ()</l>
+<l>dev_display (Image)</l>
+<l>dev_display (XYTransRegion)</l>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+</hdevelop>
